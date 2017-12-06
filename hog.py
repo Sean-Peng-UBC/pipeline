@@ -13,19 +13,23 @@ def create_vector(df):
     semipi = pi/2
     scope = pi/16
     dataset = []
+    ext = []
     length = df.max().Cluster+1
     for cluster in range(0, length/4):
         data = df[df.Cluster == cluster].copy()
         vector = np.zeros((2, 16))
+        var = [0]*3
         num = len(data)
 
         if num > 1:
             for i in range(0, num - 1):
-                clock = data.iloc[i].Clock
-                dist = data.iloc[i].Dist
+                orgin = data.iloc[i]
+                clock = orgin.Clock
+                dist = orgin.Dist
                 for j in range(i + 1, num):
-                    dclock = data.iloc[j].Clock - clock
-                    ddist = data.iloc[j].Dist - dist
+                    end = data.iloc[j]
+                    dclock = end.Clock - clock
+                    ddist = end.Dist - dist
                     distance = np.sqrt(np.square(ddist) + np.square(dclock))
                     if ddist:
                         angle = math.atan(1.0*dclock/ddist) + semipi
@@ -33,14 +37,25 @@ def create_vector(df):
                     else:
                         index = 0
                     vector[0][index] += 1
-                    vector[1][index] += np.ceil(distance/50)
+                    vector[1][index] += distance
             vector = vector/np.square(num)
 
+            var[0] = data.var().Length
+            var[1] = data.var().Width
+            var[2] = data.var().Peak
+
+        else:
+            var[0] = 1.0*data.iloc[0].Length/data.iloc[0].Width
+            var[1] = 1.0*data.iloc[0].Width/data.iloc[0].Length
+            var[2] = 1.0*data.iloc[0].Peak/data.iloc[0].Length
+
         dataset.append(vector)
+        ext.append(var)
         if cluster%200 == 0:
             print cluster
 
     dataset = np.array(dataset)
+    ext = np.array(ext)
     for array in dataset:
         temp = array.copy()
         for i in range(0, 15):
@@ -48,6 +63,7 @@ def create_vector(df):
         array[:, 15] = temp[:, 14] * 0.3 + temp[:, 15] * 0.4 + temp[:, 0] * 0.3
 
     dataset = dataset.reshape(len(dataset), -1)
+    dataset = np.hstack((dataset, ext))
     dataset = scaler.fit_transform(dataset)
 
     return dataset
@@ -74,9 +90,10 @@ def show(outindex, df):
         if i == 0:
             fig = plt.figure()
         if len(outindex) > 1:
-            a = fig.add_subplot(2, 2, i+1)
-            a.set_title(str(i+1))
-        plt.imshow(segment)
+            plt.subplot(2, 2, i+1)
+            plt.title(str(i+1))
+        plt.imshow(segment, vmin=0, vmax=40, cmap='jet', aspect='auto')
+        plt.colorbar()
 
 
 def main():
